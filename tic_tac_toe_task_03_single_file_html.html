@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tic‑Tac‑Toe — Task 03</title>
+  <!--
+    Single-file Tic-Tac-Toe web app (HTML + CSS + JS)
+    - Includes decorative "circle with gradient (fades to transparency)"
+    - Monoline-style solution icon (SVG)
+    - "Comillas Negras" (black quotation marks) as a decorative element
+    - Two play modes: 2 players (local) or vs Computer (simple AI)
+
+    Usage: open this file in a browser. Everything is self-contained.
+  -->
+  <style>
+    :root{
+      --bg:#0f1724; /* dark background */
+      --card:#0b1220;
+      --muted:#9aa4b2;
+      --accent:#7c5cff; /* purple accent */
+      --glass: rgba(255,255,255,0.04);
+      --cell-size: min(84px, 12vmin);
+    }
+
+    /* Basic page layout */
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+      background: radial-gradient(1200px 600px at 5% 10%, rgba(124,92,255,0.12), transparent 12%),
+                  linear-gradient(180deg, #071024 0%, #0a1020 60%);
+      color:#e6eef8;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:32px;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    .app{
+      width:100%;
+      max-width:920px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:18px;
+      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+      padding:28px;
+      position:relative;
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,0.02);
+    }
+
+    /* Decorative circle with gradient that fades to transparency */
+    .decor-circle{
+      position:absolute;
+      right:-120px;
+      top:-80px;
+      width:420px;
+      height:420px;
+      border-radius:50%;
+      pointer-events:none;
+      background: radial-gradient(circle at 35% 35%, rgba(124,92,255,0.35) 0%, rgba(124,92,255,0.12) 20%, rgba(124,92,255,0.06) 38%, transparent 55%);
+      transform: rotate(12deg);
+      filter: blur(6px);
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      margin-bottom:18px;
+    }
+
+    /* Monoline Solution Icon (SVG placed as inline element) */
+    .logo{
+      width:56px;height:56px;flex:0 0 56px;display:grid;place-items:center;border-radius:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03)
+    }
+
+    h1{
+      font-size:20px;margin:0;line-height:1;color:#ffffff;font-weight:600;
+    }
+    p.lead{margin:0;color:var(--muted);font-size:13px}
+
+    .controls{
+      display:flex;gap:8px;margin-left:auto;align-items:center
+    }
+
+    .btn{
+      background:var(--glass);
+      border:1px solid rgba(255,255,255,0.04);
+      color:var(--muted);
+      padding:8px 12px;border-radius:10px;font-size:13px;cursor:pointer
+    }
+    .btn.active{color:#fff;border-color:rgba(124,92,255,0.7);background:linear-gradient(180deg, rgba(124,92,255,0.06), rgba(124,92,255,0.02));}
+
+    /* Layout */
+    .main{
+      display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap
+    }
+
+    /* Board card */
+    .board-card{
+      background: rgba(255,255,255,0.02);
+      padding:18px;border-radius:14px;display:flex;flex-direction:column;gap:12px;flex:1 1 360px;min-width:280px
+    }
+
+    .status-row{display:flex;align-items:center;gap:12px}
+    .status{font-weight:600}
+
+    /* Tic-Tac-Toe grid */
+    .board{
+      display:grid;grid-template-columns:repeat(3, var(--cell-size));grid-template-rows:repeat(3,var(--cell-size));gap:10px;justify-content:center;padding:6px;align-self:center
+    }
+    .cell{
+      width:var(--cell-size);height:var(--cell-size);display:grid;place-items:center;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.002));border-radius:10px;cursor:pointer;user-select:none;position:relative;border:2px solid rgba(255,255,255,0.02);
+      transition:transform .14s ease, box-shadow .14s ease;
+      font-size:calc(var(--cell-size) * 0.5);font-weight:700;color: #f8fafc;
+    }
+    .cell:hover{transform:translateY(-6px);box-shadow:0 12px 26px rgba(2,6,23,0.45)}
+    .cell.disabled{cursor:default;opacity:0.92}
+
+    /* X and O styles (monoline-ish stroke) */
+    .cell .mark{display:block;line-height:1;}
+    .mark.x{color:#ff7a7a;text-shadow:0 2px 8px rgba(255,122,122,0.1)}
+    .mark.o{color:#7ec8ff;text-shadow:0 2px 8px rgba(126,200,255,0.06)}
+
+    /* Highlight winning cells */
+    .cell.win{box-shadow:0 10px 30px rgba(124,92,255,0.18);transform:scale(1.03)}
+
+    .sidebar{
+      width:260px;flex:0 0 260px;display:flex;flex-direction:column;gap:12px
+    }
+    .card{background:rgba(255,255,255,0.01);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.02)}
+
+    .modes{display:flex;gap:8px}
+    .muted-sm{font-size:13px;color:var(--muted)}
+
+    .footer{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:10px}
+
+    /* Comillas Negras (black quotation marks) decorative element */
+    .quotes{
+      position:absolute;left:20px;bottom:18px;opacity:0.06;font-size:86px;line-height:1;color:#000;pointer-events:none
+    }
+
+    /* Responsive tweaks */
+    @media (max-width:780px){
+      .main{flex-direction:column}
+      .sidebar{width:100%;flex-basis:auto}
+      .decor-circle{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Tic Tac Toe">
+    <div class="decor-circle" aria-hidden="true"></div>
+
+    <header>
+      <div class="logo" aria-hidden="true">
+        <!-- Monoline Solution Icon: simplified "tick + circle" drawn with stroke -->
+        <svg width="38" height="38" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="24" cy="24" r="18" stroke="url(#g)" stroke-width="1.6" fill="none"/>
+          <path d="M15 24l5.5 5L33 17" stroke="url(#g)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#9C7BFF" />
+              <stop offset="1" stop-color="#6C5CE7" />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+
+      <div>
+        <h1>Tic‑Tac‑Toe — Task 03</h1>
+        <p class="lead">Simple, single-file web app. Play locally or vs a basic AI.</p>
+      </div>
+
+      <div class="controls">
+        <button id="twoBtn" class="btn active" aria-pressed="true">2 Players</button>
+        <button id="aiBtn" class="btn" aria-pressed="false">Vs Computer</button>
+        <button id="resetBtn" class="btn" title="Reset board">Reset</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <section class="board-card card">
+        <div class="status-row">
+          <div class="status">Current: <span id="current">X</span></div>
+          <div class="muted-sm">|</div>
+          <div class="muted-sm" id="message">Make a move</div>
+        </div>
+
+        <div class="board" id="board" role="grid" aria-label="Tic Tac Toe board">
+          <!-- 9 cells inserted by JS -->
+        </div>
+
+        <div class="footer">
+          <div class="muted-sm">Tip: Click a square to place your mark.</div>
+          <div class="muted-sm">Built with simple JS</div>
+        </div>
+      </section>
+
+      <aside class="sidebar">
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:46px;height:46px;border-radius:10px;background:linear-gradient(180deg, rgba(124,92,255,0.14), rgba(124,92,255,0.06));display:grid;place-items:center;">
+              <!-- small monoline icon -->
+              <svg width="28" height="28" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M16 24l5 4 11-12" stroke="#cdb7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:600">Monoline Solution</div>
+              <div class="muted-sm">Decorative icon + subtle gradients</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:600;margin-bottom:6px">Mode</div>
+          <div class="modes">
+            <!-- mirrors top controls -->
+            <button class="btn active" id="twoBtn2">2 Players</button>
+            <button class="btn" id="aiBtn2">Vs Computer</button>
+          </div>
+          <div class="muted-sm" style="margin-top:8px">Computer uses a simple rule-based AI (try center, then corners).</div>
+        </div>
+
+        <div class="card">
+          <div style="font-weight:600;margin-bottom:6px">About the "Comillas Negras" element</div>
+          <div class="muted-sm">A decorative set of black quotation marks (comillas negras) is placed low-left as a subtle typographic accent.</div>
+        </div>
+      </aside>
+
+    </main>
+
+    <!-- Comillas Negras (very subtle, decorative) -->
+    <div class="quotes" aria-hidden="true">“ ”</div>
+
+    <script>
+      /* ----------------------
+         Step-by-step mapping of JS logic (for learning):
+         1) Render board cells (0..8)
+         2) Track game state (array of 9 items)
+         3) Handle clicks: place mark if empty, update state
+         4) Check for win/draw after each move
+         5) If vs AI and game continues: compute AI move and apply
+         6) Provide Reset and Mode toggles
+      -----------------------*/
+
+      // Game state
+      const boardEl = document.getElementById('board');
+      const currentEl = document.getElementById('current');
+      const messageEl = document.getElementById('message');
+      const resetBtn = document.getElementById('resetBtn');
+      const twoBtn = document.getElementById('twoBtn');
+      const aiBtn = document.getElementById('aiBtn');
+      const twoBtn2 = document.getElementById('twoBtn2');
+      const aiBtn2 = document.getElementById('aiBtn2');
+
+      let mode = '2P'; // '2P' or 'AI'
+      let game = Array(9).fill(null);
+      let current = 'X';
+      let locked = false; // when game over or waiting for AI
+
+      const winningCombos = [
+        [0,1,2],[3,4,5],[6,7,8],
+        [0,3,6],[1,4,7],[2,5,8],
+        [0,4,8],[2,4,6]
+      ];
+
+      function renderBoard(){
+        boardEl.innerHTML = '';
+        for(let i=0;i<9;i++){
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.setAttribute('data-index', i);
+          cell.setAttribute('role','gridcell');
+          if(game[i]){
+            const span = document.createElement('span');
+            span.className = 'mark '+ (game[i]==='X' ? 'x' : 'o');
+            span.textContent = game[i];
+            cell.appendChild(span);
+            cell.classList.add('disabled');
+          }
+          cell.addEventListener('click', onCellClick);
+          boardEl.appendChild(cell);
+        }
+      }
+
+      function onCellClick(e){
+        if(locked) return;
+        const idx = Number(e.currentTarget.dataset.index);
+        if(game[idx]) return; // occupied
+        placeMark(idx, current);
+        afterMove();
+      }
+
+      function placeMark(idx, mark){
+        game[idx] = mark;
+        const cell = boardEl.querySelector(`[data-index='${idx}']`);
+        if(cell){
+          const span = document.createElement('span');
+          span.className = 'mark '+ (mark==='X' ? 'x' : 'o');
+          span.textContent = mark;
+          cell.appendChild(span);
+          cell.classList.add('disabled');
+        }
+      }
+
+      function afterMove(){
+        const winner = checkWinner();
+        if(winner){
+          locked = true;
+          showWin(winner);
+          return;
+        }
+        if(isDraw()){
+          locked = true;
+          messageEl.textContent = 'Draw!';
+          return;
+        }
+        // next player
+        current = current === 'X' ? 'O' : 'X';
+        currentEl.textContent = current;
+        messageEl.textContent = (mode==='AI' && current==='O') ? 'Computer thinking...' : 'Your move';
+
+        // If AI mode and it's O's turn, trigger AI
+        if(mode==='AI' && current==='O'){
+          locked = true;
+          setTimeout(()=>{
+            const aiIdx = computeAIMove();
+            placeMark(aiIdx,'O');
+            locked = false;
+            const winner2 = checkWinner();
+            if(winner2){ locked=true; showWin(winner2); return; }
+            if(isDraw()){ locked=true; messageEl.textContent = 'Draw!'; return; }
+            current = 'X'; currentEl.textContent = current; messageEl.textContent = 'Your move';
+          }, 420);
+        }
+      }
+
+      function checkWinner(){
+        for(const combo of winningCombos){
+          const [a,b,c] = combo;
+          if(game[a] && game[a] === game[b] && game[a] === game[c]){
+            return {player:game[a], combo};
+          }
+        }
+        return null;
+      }
+
+      function showWin(result){
+        messageEl.textContent = result.player + ' wins!';
+        // highlight winning cells
+        for(const idx of result.combo){
+          const cell = boardEl.querySelector(`[data-index='${idx}']`);
+          if(cell) cell.classList.add('win');
+        }
+      }
+
+      function isDraw(){
+        return game.every(cell => cell !== null);
+      }
+
+      function reset(){
+        game = Array(9).fill(null);
+        current = 'X';
+        currentEl.textContent = current;
+        messageEl.textContent = 'Make a move';
+        locked = false;
+        renderBoard();
+      }
+
+      // Simple rule-based AI (not minimax): try win > block > center > corners > random
+      function computeAIMove(){
+        // 1) Win if possible
+        for(let i=0;i<9;i++){
+          if(!game[i]){
+            game[i] = 'O';
+            if(checkWinner()){ game[i]=null; return i; }
+            game[i]=null;
+          }
+        }
+        // 2) Block X
+        for(let i=0;i<9;i++){
+          if(!game[i]){
+            game[i] = 'X';
+            if(checkWinner()){ game[i]=null; return i; }
+            game[i]=null;
+          }
+        }
+        // 3) center
+        if(!game[4]) return 4;
+        // 4) corners
+        const corners = [0,2,6,8].filter(i=>!game[i]);
+        if(corners.length) return corners[Math.floor(Math.random()*corners.length)];
+        // 5) edges
+        const edges = [1,3,5,7].filter(i=>!game[i]);
+        if(edges.length) return edges[Math.floor(Math.random()*edges.length)];
+        // fallback
+        return game.findIndex(v=>v===null);
+      }
+
+      // UI wiring for mode toggles and reset
+      function setMode(m){
+        mode = m;
+        const activeBtn = m==='AI' ? aiBtn : twoBtn;
+        const activeBtn2 = m==='AI' ? aiBtn2 : twoBtn2;
+        // toggle top
+        [twoBtn, aiBtn].forEach(b=>b.classList.remove('active'));
+        activeBtn.classList.add('active');
+        activeBtn.setAttribute('aria-pressed','true');
+        [twoBtn2, aiBtn2].forEach(b=>b.classList.remove('active'));
+        activeBtn2.classList.add('active');
+
+        // mirror other set
+        [twoBtn, aiBtn].forEach(b=>{ b.setAttribute('aria-pressed', b.classList.contains('active')) });
+        [twoBtn2, aiBtn2].forEach(b=>{ b.setAttribute('aria-pressed', b.classList.contains('active')) });
+
+        reset();
+      }
+
+      // attach listeners
+      resetBtn.addEventListener('click', reset);
+      twoBtn.addEventListener('click', ()=>setMode('2P'));
+      aiBtn.addEventListener('click', ()=>setMode('AI'));
+      twoBtn2.addEventListener('click', ()=>setMode('2P'));
+      aiBtn2.addEventListener('click', ()=>setMode('AI'));
+
+      // initial render
+      renderBoard();
+
+      // Expose for debugging in console
+      window.TTT = {game, reset, setMode};
+    </script>
+  </div>
+</body>
+</html>
